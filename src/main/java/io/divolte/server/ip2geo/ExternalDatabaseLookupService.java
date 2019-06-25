@@ -15,7 +15,9 @@
  */
 
 package io.divolte.server.ip2geo;
-
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.Timer;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.ClosedWatchServiceException;
@@ -41,6 +43,8 @@ import com.maxmind.geoip2.model.CityResponse;
 public class ExternalDatabaseLookupService implements LookupService {
     private static final Logger logger = LoggerFactory.getLogger(ExternalDatabaseLookupService.class);
 
+    private final MetricRegistry metrics = SharedMetricRegistries.getOrCreate("divolte");
+    private final Timer lookups = metrics.timer(MetricRegistry.name(this.getClass(), "lookups"));
     private final ExecutorService backgroundWatcher = Executors.newSingleThreadExecutor();
     private final WatchService watcher;
     private final Path location;
@@ -130,16 +134,21 @@ public class ExternalDatabaseLookupService implements LookupService {
 
     @Override
     public Optional<CityResponse> lookup(final InetAddress address) throws ClosedServiceException {
-        final DatabaseLookupService service = databaseLookupService.get();
-        if (null == service) {
-            throw new ClosedServiceException(this);
-        }
+        final Timer.Context context = lookups.time();
         try {
-            return service.lookup(address);
-        } catch (final ClosedServiceException e) {
-            // We accidentally performed a lookup using an underlying service that was closed
-            // between us fetching it and using it. Retry via recursion.
-            return lookup(address);
+            final DatabaseLookupService service = databaseLookupService.get();
+            if (null == service) {
+                throw new ClosedServiceException(this);
+            }
+            try {
+                return service.lookup(address);
+            } catch (final ClosedServiceException e) {
+                // We accidentally performed a lookup using an underlying service that was closed
+                // between us fetching it and using it. Retry via recursion.
+                return lookup(address);
+            }
+        } finally {
+            context.stop();
         }
     }
 

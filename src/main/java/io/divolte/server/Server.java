@@ -16,6 +16,9 @@
 
 package io.divolte.server;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
+import com.codahale.metrics.jmx.JmxReporter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.typesafe.config.ConfigFactory;
@@ -67,6 +70,11 @@ public final class Server implements Runnable {
 
         shutdownDelay = vc.configuration().global.server.shutdownDelay;
         shutdownTimeout = vc.configuration().global.server.shutdownTimeout;
+
+        SharedMetricRegistries.clear();
+        final MetricRegistry metrics = SharedMetricRegistries.getOrCreate("divolte");
+        JmxReporter.forRegistry(metrics).inDomain("io.divolte.server").build().start();
+
 
         // First thing we need to do is load all the schemas: the sinks need these, but they come from the
         // mappings.
