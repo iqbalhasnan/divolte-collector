@@ -113,7 +113,7 @@ public class DslRecordMapperTest {
         assertEquals("Personal computer", record.get("userAgentDeviceCategory"));
         assertEquals("OS X", record.get("userAgentOsFamily"));
         assertEquals("10.10.1", record.get("userAgentOsVersion"));
-        assertEquals("Apple Computer, Inc.", record.get("userAgentOsVendor"));
+        assertEquals("Apple Inc.", record.get("userAgentOsVendor"));
 
         assertEquals(event.partyId.value, record.get("client"));
         assertEquals(event.sessionId.value, record.get("session"));
